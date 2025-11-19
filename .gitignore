@@ -20,3 +20,15 @@ coverage.xml
 .pytest_cache/
 .DS_Store
 db.sqlite3
+
+# Secrets and sensitive files
+.env.local
+.env.production
+secrets.json
+config/secrets.py
+*.key
+*.pem
+github_pat_*
+*_token
+*_key
+*_secret
