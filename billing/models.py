@@ -1,6 +1,6 @@
 from django.db import models
 from customers.models import Customer
-from services.models import ServicePlan
+from  services.models import ServicePlan
 
 class CustomerService(models.Model):
     STATUS_CHOICES = [
