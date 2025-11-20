@@ -1,0 +1,144 @@
+{% extends 'customers/base.html' %}
+
+{% block title %}Invoice #{{ invoice.id }} - ADAKEV{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Invoice #{{ invoice.id }}</h2>
+            <div>
+                <a href="{% url 'customers:customer_invoices' %}" class="btn btn-outline-secondary me-2">Back to Invoices</a>
+                <button class="btn btn-primary" onclick="window.print()">Print Invoice</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Invoice Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Invoice Number:</strong> {{ invoice.id }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Status:</strong>
+                        <span class="badge bg-{{ invoice.status|lower }} ms-2">
+                            {{ invoice.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Service:</strong> {{ invoice.customer_service.plan.name }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Speed:</strong> {{ invoice.customer_service.plan.speed_mbps }} Mbps
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Amount:</strong> KSh {{ invoice.amount }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Due Date:</strong> {{ invoice.due_date|date:"l, F d, Y" }}
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Created:</strong> {{ invoice.created_at|date:"l, F d, Y \a\t H:i" }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Customer:</strong> {{ invoice.customer_service.customer.user.get_full_name }}
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="row">
+                    <div class="col-12">
+                        <h6>Billing Address:</h6>
+                        <address>
+                            {{ invoice.customer_service.customer.user.get_full_name }}<br>
+                            {{ invoice.customer_service.customer.address }}<br>
+                            Phone: {{ invoice.customer_service.customer.phone_number }}<br>
+                            Email: {{ invoice.customer_service.customer.user.email }}
+                        </address>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Payment Status -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Payment Status</h6>
+            </div>
+            <div class="card-body">
+                {% if invoice.status == 'PAID' %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> This invoice has been paid in full.
+                    </div>
+                {% elif invoice.status == 'OVERDUE' %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> This invoice is overdue.
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-clock"></i> Payment is pending.
+                    </div>
+                {% endif %}
+
+                {% if invoice.status == 'PENDING' %}
+                    <a href="{% url 'billing:initiate_mpesa_payment' invoice.id %}" class="btn btn-success w-100">Pay with M-Pesa</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Payment History -->
+        {% if payments %}
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Payment History</h6>
+                </div>
+                <div class="card-body">
+                    {% for payment in payments %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <small class="text-muted">{{ payment.timestamp|date:"M d, Y H:i" }}</small><br>
+                                <code>{{ payment.mpesa_code }}</code>
+                            </div>
+                            <strong>KSh {{ payment.amount_paid }}</strong>
+                        </div>
+                        {% if not forloop.last %}<hr>{% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Add print-specific styles
+    const style = document.createElement('style');
+    style.textContent = `
+        @media print {
+            .btn, .card-header, .alert { display: none !important; }
+            .card { border: none !important; box-shadow: none !important; }
+        }
+    `;
+    document.head.appendChild(style);
+</script>
+{% endblock %}

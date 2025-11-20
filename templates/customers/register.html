@@ -1,0 +1,87 @@
+{% extends 'customers/base.html' %}
+
+{% block title %}Register - ADAKEV{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title text-center mb-0">Customer Registration</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <!-- User Information -->
+                    <h5 class="mb-3">Account Information</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ user_form.username.id_for_label }}" class="form-label">Username</label>
+                            {{ user_form.username }}
+                            {% if user_form.username.errors %}
+                                <div class="text-danger small">{{ user_form.username.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ user_form.email.id_for_label }}" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="{{ user_form.email.id_for_label }}" name="user-email" required>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ user_form.password1.id_for_label }}" class="form-label">Password</label>
+                            {{ user_form.password1 }}
+                            {% if user_form.password1.errors %}
+                                <div class="text-danger small">{{ user_form.password1.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ user_form.password2.id_for_label }}" class="form-label">Confirm Password</label>
+                            {{ user_form.password2 }}
+                            {% if user_form.password2.errors %}
+                                <div class="text-danger small">{{ user_form.password2.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Customer Information -->
+                    <h5 class="mb-3 mt-4">Personal Information</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ customer_form.phone_number.id_for_label }}" class="form-label">Phone Number</label>
+                            {{ customer_form.phone_number }}
+                            {% if customer_form.phone_number.errors %}
+                                <div class="text-danger small">{{ customer_form.phone_number.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ customer_form.id_number.id_for_label }}" class="form-label">ID Number</label>
+                            {{ customer_form.id_number }}
+                            {% if customer_form.id_number.errors %}
+                                <div class="text-danger small">{{ customer_form.id_number.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ customer_form.address.id_for_label }}" class="form-label">Address</label>
+                        {{ customer_form.address }}
+                        {% if customer_form.address.errors %}
+                            <div class="text-danger small">{{ customer_form.address.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success">Create Account</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center">
+                <p class="mb-0">Already have an account? <a href="{% url 'customers:customer_login' %}">Login here</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

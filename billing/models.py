@@ -36,7 +36,7 @@ class Invoice(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Invoice #{self.id} - {self.customer_service.customer} ({self.status})"
+        return f"Invoice #{self.id} - {self.customer_service.customer.user.get_full_name()} ({self.status})"
 
 class Payment(models.Model):
     invoice = models.ForeignKey(Invoice, on_delete=models.PROTECT)

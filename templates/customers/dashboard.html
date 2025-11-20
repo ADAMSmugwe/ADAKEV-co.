@@ -1,0 +1,198 @@
+{% extends 'customers/base.html' %}
+
+{% block title %}Dashboard - ADAKEV{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">Customer Dashboard</h2>
+    </div>
+</div>
+
+<!-- Customer Info Card -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Personal Information</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Name:</strong> {{ customer.user.get_full_name }}</p>
+                <p><strong>Email:</strong> {{ customer.user.email }}</p>
+                <p><strong>Phone:</strong> {{ customer.phone_number }}</p>
+                <p><strong>ID Number:</strong> {{ customer.id_number }}</p>
+                <p><strong>Address:</strong> {{ customer.address }}</p>
+                <p><strong>Member since:</strong> {{ customer.created_at|date:"M d, Y" }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Account Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h3 class="text-primary">{{ subscriptions|length }}</h3>
+                        <p class="mb-0">Active Services</p>
+                    </div>
+                    <div class="col-4">
+                        <h3 class="text-warning">{{ invoices|length }}</h3>
+                        <p class="mb-0">Total Invoices</p>
+                    </div>
+                    <div class="col-4">
+                        <h3 class="text-success">{{ payments|length }}</h3>
+                        <p class="mb-0">Payments Made</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Active Subscriptions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">My Services</h5>
+            </div>
+            <div class="card-body">
+                {% if subscriptions %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Service Plan</th>
+                                    <th>Speed</th>
+                                    <th>Monthly Fee</th>
+                                    <th>Status</th>
+                                    <th>Start Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for subscription in subscriptions %}
+                                    <tr>
+                                        <td>{{ subscription.plan.name }}</td>
+                                        <td>{{ subscription.plan.speed_mbps }} Mbps</td>
+                                        <td>KSh {{ subscription.plan.price }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ subscription.status|lower }}">
+                                                {{ subscription.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>{{ subscription.start_date|date:"M d, Y" }}</td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-primary">View Details</a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No active services found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Invoices -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Recent Invoices</h5>
+                <a href="{% url 'customers:customer_invoices' %}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                {% if invoices %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Invoice #</th>
+                                    <th>Service</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Due Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in invoices|slice:":5" %}
+                                    <tr>
+                                        <td>{{ invoice.id }}</td>
+                                        <td>{{ invoice.customer_service.plan.name }}</td>
+                                        <td>KSh {{ invoice.amount }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ invoice.status|lower }}">
+                                                {{ invoice.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>{{ invoice.due_date|date:"M d, Y" }}</td>
+                                        <td>
+                                            <a href="{% url 'customers:customer_invoice_detail' invoice.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                                            {% if invoice.status == 'PENDING' %}
+                                                <a href="{% url 'billing:initiate_mpesa_payment' invoice.id %}" class="btn btn-sm btn-success">Pay Now</a>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No invoices found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Payments -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Payment History</h5>
+            </div>
+            <div class="card-body">
+                {% if payments %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Payment Date</th>
+                                    <th>Invoice</th>
+                                    <th>Amount Paid</th>
+                                    <th>M-Pesa Code</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payments|slice:":5" %}
+                                    <tr>
+                                        <td>{{ payment.timestamp|date:"M d, Y H:i" }}</td>
+                                        <td>Invoice #{{ payment.invoice.id }}</td>
+                                        <td>KSh {{ payment.amount_paid }}</td>
+                                        <td><code>{{ payment.mpesa_code }}</code></td>
+                                        <td>
+                                            <span class="badge bg-success">Confirmed</span>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No payment history found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
