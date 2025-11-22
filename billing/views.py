@@ -90,7 +90,7 @@ def initiate_mpesa_payment(request, invoice_id):
         )
     except (Customer.DoesNotExist, Invoice.DoesNotExist):
         messages.error(request, 'Invoice not found or access denied.')
-        return redirect('customer_invoices')
+        return redirect('customers:customer_invoices')
 
     if request.method == 'POST':
         phone_number = request.POST.get('phone_number')
@@ -98,7 +98,7 @@ def initiate_mpesa_payment(request, invoice_id):
         # Validate phone number (should be in format 254XXXXXXXXX)
         if not phone_number or not phone_number.startswith('254') or len(phone_number) != 12:
             messages.error(request, 'Please enter a valid M-Pesa phone number (254XXXXXXXXX).')
-            return redirect('initiate_mpesa_payment', invoice_id=invoice_id)
+            return redirect('billing:initiate_mpesa_payment', invoice_id=invoice_id)
 
         # Here we would integrate with M-Pesa Daraja API
         # For now, we'll simulate the payment process
@@ -115,7 +115,7 @@ def initiate_mpesa_payment(request, invoice_id):
         invoice.save()
 
         messages.success(request, f'Payment of KSh {invoice.amount} successful! M-Pesa code: {payment.mpesa_code}')
-        return redirect('customer_invoice_detail', invoice_id=invoice.id)
+        return redirect('customers:customer_invoice_detail', invoice_id=invoice.id)
 
     context = {
         'invoice': invoice,

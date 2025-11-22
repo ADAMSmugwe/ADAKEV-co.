@@ -1,6 +1,5 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate
-from django.contrib.auth.forms import UserCreationForm
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
@@ -8,7 +7,7 @@ from rest_framework import generics, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from .models import Customer
-from .forms import CustomerRegistrationForm
+from .forms import CustomUserCreationForm, CustomerRegistrationForm
 from .serializers import CustomerSerializer
 from billing.models import Invoice
 
@@ -71,7 +70,7 @@ def customer_register(request):
         return redirect('customers:customer_dashboard')
 
     if request.method == 'POST':
-        user_form = UserCreationForm(request.POST)
+        user_form = CustomUserCreationForm(request.POST)
         customer_form = CustomerRegistrationForm(request.POST)
 
         if user_form.is_valid() and customer_form.is_valid():
@@ -88,7 +87,7 @@ def customer_register(request):
             messages.success(request, f'Account created successfully! Welcome, {user.get_full_name()}!')
             return redirect('customers:customer_dashboard')
     else:
-        user_form = UserCreationForm()
+        user_form = CustomUserCreationForm()
         customer_form = CustomerRegistrationForm()
 
     return render(request, 'customers/register.html', {
