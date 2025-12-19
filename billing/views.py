@@ -6,6 +6,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 import json
 import requests
+import os
+import base64
 from datetime import datetime
 from rest_framework import generics, permissions
 from rest_framework.decorators import api_view, permission_classes
@@ -100,22 +102,27 @@ def initiate_mpesa_payment(request, invoice_id):
             messages.error(request, 'Please enter a valid M-Pesa phone number (254XXXXXXXXX).')
             return redirect('billing:initiate_mpesa_payment', invoice_id=invoice_id)
 
-        # Here we would integrate with M-Pesa Daraja API
-        # For now, we'll simulate the payment process
+        # Initiate M-Pesa STK Push
+        stk_response = initiate_stk_push(phone_number, float(invoice.amount), f"Invoice-{invoice.id}", f"Payment for Invoice #{invoice.id}")
 
-        # Simulate successful payment
-        payment = Payment.objects.create(
-            invoice=invoice,
-            amount_paid=invoice.amount,
-            mpesa_code=f"MPESA{datetime.now().strftime('%Y%m%d%H%M%S')}",
-        )
+        if stk_response.get('ResponseCode') == '0':
+            # Payment initiated successfully
+            checkout_request_id = stk_response.get('CheckoutRequestID')
+            
+            # Create Payment record with checkout_request_id
+            payment = Payment.objects.create(
+                invoice=invoice,
+                amount_paid=invoice.amount,
+                mpesa_code=f"PENDING-{checkout_request_id}",  # Temporary code until callback
+                checkout_request_id=checkout_request_id,
+            )
 
-        # Update invoice status
-        invoice.status = 'PAID'
-        invoice.save()
-
-        messages.success(request, f'Payment of KSh {invoice.amount} successful! M-Pesa code: {payment.mpesa_code}')
-        return redirect('customers:customer_invoice_detail', invoice_id=invoice.id)
+            messages.success(request, f'M-Pesa STK Push initiated! Please check your phone to complete the payment. Transaction ID: {checkout_request_id}')
+            return redirect('customers:customer_invoice_detail', invoice_id=invoice.id)
+        else:
+            # Payment initiation failed
+            messages.error(request, f'Failed to initiate payment: {stk_response.get("ResponseDescription", "Unknown error")}')
+            return redirect('billing:initiate_mpesa_payment', invoice_id=invoice_id)
 
     context = {
         'invoice': invoice,
@@ -157,11 +164,29 @@ def mpesa_callback(request):
                     elif item.get('Name') == 'PhoneNumber':
                         phone_number = item.get('Value')
 
-                # Find and update the corresponding invoice
-                # This would require storing checkout_request_id when initiating payment
-                # For now, we'll assume the payment is processed
+                # Find the payment using CheckoutRequestID
+                try:
+                    payment = Payment.objects.get(checkout_request_id=checkout_request_id)
+                    
+                    # Update payment details
+                    payment.mpesa_code = mpesa_receipt_number
+                    payment.amount_paid = amount
+                    payment.save()
 
-                return JsonResponse({'status': 'success', 'message': 'Payment processed successfully'})
+                    # Update invoice status
+                    invoice = payment.invoice
+                    invoice.status = 'PAID'
+                    invoice.save()
+
+                    # Update customer service status to ACTIVE
+                    customer_service = invoice.customer_service
+                    customer_service.status = 'ACTIVE'
+                    customer_service.save()
+
+                    return JsonResponse({'status': 'success', 'message': 'Payment processed successfully'})
+
+                except Payment.DoesNotExist:
+                    return JsonResponse({'status': 'error', 'message': 'Payment record not found'})
 
             else:
                 # Payment failed
@@ -174,20 +199,48 @@ def mpesa_callback(request):
 
 def get_mpesa_access_token():
     """Get M-Pesa access token"""
-    # This would integrate with M-Pesa Daraja API
-    # For development, we'll return a mock token
-    return "mock_access_token"
+    consumer_key = os.getenv('MPESA_CONSUMER_KEY')
+    consumer_secret = os.getenv('MPESA_CONSUMER_SECRET')
+    api_url = 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
+
+    try:
+        response = requests.get(api_url, auth=(consumer_key, consumer_secret))
+        response.raise_for_status()
+        return response.json()['access_token']
+    except requests.RequestException as e:
+        print(f"Error getting access token: {e}")
+        return None
 
 def initiate_stk_push(phone_number, amount, account_reference, transaction_desc):
     """Initiate M-Pesa STK Push"""
-    # This would make actual API calls to M-Pesa
-    # For development, we'll simulate the response
+    access_token = get_mpesa_access_token()
+    if not access_token:
+        return {'ResponseCode': '1', 'ResponseDescription': 'Failed to get access token'}
 
-    # Mock successful response
-    return {
-        'MerchantRequestID': 'mock_merchant_request_id',
-        'CheckoutRequestID': 'mock_checkout_request_id',
-        'ResponseCode': '0',
-        'ResponseDescription': 'Success. Request accepted for processing',
-        'CustomerMessage': 'Success. Request accepted for processing'
+    api_url = 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
+    headers = {'Authorization': f'Bearer {access_token}'}
+
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    password = base64.b64encode(f"{os.getenv('MPESA_SHORTCODE')}{os.getenv('MPESA_PASSKEY')}{timestamp}".encode()).decode()
+
+    payload = {
+        'BusinessShortCode': os.getenv('MPESA_SHORTCODE'),
+        'Password': password,
+        'Timestamp': timestamp,
+        'TransactionType': 'CustomerPayBillOnline',
+        'Amount': amount,
+        'PartyA': phone_number,
+        'PartyB': os.getenv('MPESA_SHORTCODE'),
+        'PhoneNumber': phone_number,
+        'CallBackURL': os.getenv('MPESA_CALLBACK_URL'),
+        'AccountReference': account_reference,
+        'TransactionDesc': transaction_desc
     }
+
+    try:
+        response = requests.post(api_url, json=payload, headers=headers)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        print(f"Error initiating STK push: {e}")
+        return {'ResponseCode': '1', 'ResponseDescription': 'Failed to initiate STK push'}
